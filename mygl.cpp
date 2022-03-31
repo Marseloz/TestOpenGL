@@ -3,52 +3,28 @@
 #include <QOpenGLBuffer>
 #include <QOpenGLContext>
 #include <QDebug>
-
 #include <QColor>
 
-void qMultMatrix(const QMatrix4x4 &mat)
-{
-    if (sizeof(qreal) == sizeof(GLfloat))
-        glMultMatrixf((GLfloat*)mat.constData());
-#ifndef QT_OPENGL_ES
-    else if (sizeof(qreal) == sizeof(GLdouble))
-        glMultMatrixd((GLdouble*)mat.constData());
-#endif
-    else
-    {
-        GLfloat fmat[16];
-        GLfloat const *r = mat.constData();
-        for (int i = 0; i < 16; ++i)
-            fmat[i] = r[i];
-        glMultMatrixf(fmat);
-    }
-}
-
-mygl::mygl(QWidget *parent): QOpenGLWidget{parent}, sphere2(1.0f, 3, 40)
+mygl::mygl(QWidget *parent): QOpenGLWidget{parent}, sphere2(1.0f, 5, 5)
 {
 }
 
 void mygl::initializeGL()
 {
 
-    initializeOpenGLFunctions();
+    qDebug() << "initializeOpenGLFunctions:" << initializeOpenGLFunctions();
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-    //glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_LIGHT0);
-    glEnable(GL_LIGHTING);
-    glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-    glEnable(GL_COLOR_MATERIAL);
-    glEnable(GL_MULTISAMPLE);
 
     compilVertexShaderGL(vertexShader, vertexShaderSource);
     // fragment shader
     compilFragmentShaderGL(fragmentShader, fragmentShaderSource);
     // link shaders
+    qDebug()<<shaderProgram << "-";
     compilShaderProgramGL(shaderProgram, vertexShader, fragmentShader);
-
-    glUseProgram(shaderProgram);
-    glGetUniformLocation(shaderProgram, "pMatrix");
+    qDebug()<<shaderProgram << "--";
+    //glUseProgram(shaderProgram);
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 
@@ -68,8 +44,13 @@ void mygl::initializeGL()
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
+    //glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    //glEnableVertexAttribArray(1);
+
+    //glBindBuffer(GL_ARRAY_BUFFER, 0);
+    //glBindVertexArray(0);
+
+    glUseProgram(shaderProgram);
 }
 
 void ChangeSize(GLsizei width, GLsizei height){
@@ -79,19 +60,25 @@ void ChangeSize(GLsizei width, GLsizei height){
 
     glViewport((width - side) / 2, (height - side) / 2, side, side);
 
+    glDepthFunc(GL_LEQUAL);
+    glEnable(GL_DEPTH_TEST);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
 //#ifdef QT_OPENGL_ES_1
-//    glOrthof(-0.5, +0.5, -0.5, +0.5, 4.0, 15.0);
+    //glOrtho(-0.5, +0.5, -0.5, +0.5, 4.0, 15.0);
 //#else
 //    glOrtho(-0.5, +0.5, -0.5, +0.5, 4.0, 15.0);
 //#endif
     if (width <= height){
-        glFrustum(-nRange, nRange, -nRange*height/width, nRange*height/width, -nRange, nRange);}
+        glFrustum(-nRange, nRange, -nRange*height/width, nRange*height/width, nRange, nRange*3);
+    }
     else{
-        glFrustum(-nRange*height/width, nRange*height/width, -nRange, nRange, -nRange, nRange);}
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
+        glFrustum(-nRange*height/width, nRange*height/width, -nRange, nRange, nRange, nRange*3);
+    }
+    //glMatrixMode(GL_MODELVIEW);
+    //glLoadIdentity();
 }
 
 void mygl::resizeGL(int width, int height)
@@ -101,17 +88,31 @@ void mygl::resizeGL(int width, int height)
 
 void mygl::paintGL()
 {
-    //qDebug()<<this->width()<<"|"<<this->height();
-    ChangeSize(this->width(), this->height());
+    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    glUseProgram(shaderProgram);
     // draw our first triangle
-    glBindVertexArray(VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
+
+
+    ChangeSize(this->width(), this->height());
+    //glLoadIdentity();
+    //qDebug()<<this->width()<<"|"<<this->height();
+    //glPushMatrix();
+    //GLdouble translate[16] = {1,0,0,0,0,1,0,0,0,0,1,0,1,0,0,1};
+    //glMultMatrixd(translate);
+    glTranslated(4, 4, -300);
+    glRotated(30,1,0,0);
+     // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
     //glDrawArrays(GL_TRIANGLES, 0, 6);
+    //glPopMatrix();
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     //glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
-    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, faceColor);
-    glPopMatrix();
+    glBindVertexArray(VAO);
     glDrawElements(GL_TRIANGLES, sphere2.getIndexCount(), GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
+    //glDrawArrays(GL_TRIANGLES, 0, sphere2.getIndexCount());
+
+    glFlush();
 }
 
 void mygl::compilVertexShaderGL(unsigned int &vertexS, const char *vertexSS)
