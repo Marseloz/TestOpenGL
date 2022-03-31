@@ -7,7 +7,7 @@
 
 #include <vector>
 #include "Sphere.h"
-#include <QMatrix4x4>
+
     //Sphere sphere2(1.0f, 36, 18);
 
 class mygl : public QOpenGLWidget, protected QOpenGLFunctions_3_3_Core
@@ -47,7 +47,6 @@ private:
     void compilShaderProgramGL(unsigned int &shaderP, unsigned int &vertexS, unsigned int &fragmentS);
     GLint viewport[4];
     GLfloat faceColor[4];
-    QMatrix4x4 mat;
     //------------------------
 
 
