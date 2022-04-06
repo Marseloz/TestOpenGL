@@ -3,165 +3,171 @@
 #include <QOpenGLBuffer>
 #include <QOpenGLContext>
 #include <QDebug>
+#include "glm/mat4x4.hpp"
 #include <QColor>
+#include "shaderio.h"
 
-mygl::mygl(QWidget *parent): QOpenGLWidget{parent}, sphere2(1.0f, 5, 5)
+
+float vertices[] = {
+     0.f,  0.f, 0.f,
+     0.5f, 0.f, 0.f,
+     0.f,  0.f, 0.f,
+     0.f, 0.5f, 0.f,
+     0.f,  0.f, 0.f,
+     0.f,  0.f, 0.5f
+};
+unsigned int indices[] = {
+    0, 1, 3, // first triangle
+    1, 2, 3  // second triangle
+};
+//unsigned int VBO, VAO, EBO;
+//float z;
+mygl::mygl(QWidget *parent): QOpenGLWidget{parent}, sphere2(1.0f, 20, 20, false)
 {
+    buffR=vectR=X0=Y0=Z0=0;
+    viewTrigger = 0;
+    lineColor = {1, 1, 1, 0};
+    polyColor = {1, 0, 1};
+    connect(&tmr, SIGNAL(timeout()), this, SLOT(changeZ()));
+    tmr.start(20);
+}
+
+void mygl::drawAxis()
+{
+    glDisable(GL_LIGHTING);
+    glEnableClientState(GL_VERTEX_ARRAY);
+        glVertexPointer(3, GL_FLOAT, 0, &vertices);
+        glColor3d(1,0,0);
+        glDrawArrays(GL_LINES, 0, 2);
+        glColor3d(0,1,0);
+        glDrawArrays(GL_LINES, 2, 2);
+        glColor3d(0,0,1);
+        glDrawArrays(GL_LINES, 4, 2);
+    glDisableClientState(GL_VERTEX_ARRAY);
+    glEnable(GL_LIGHTING);
+}
+
+void mygl::setX(float n)
+{
+    X0=n;
+}
+
+void mygl::setY(float n)
+{
+    Y0=n;
+}
+
+void mygl::setZ(float n)
+{
+    Z0=n;
+}
+
+void mygl::setSpeedRotation(float n)
+{
+    vectR = n;
+}
+
+void mygl::setColorLine(float r, float g, float b)
+{
+    lineColor.clear();
+    lineColor = {r,g,b};
+}
+
+void mygl::setColorPolygons(float r, float g, float b)
+{
+    polyColor.clear();
+    polyColor = {r,g,b};
+}
+
+void mygl::setView(int n)
+{
+    viewTrigger = n;
 }
 
 void mygl::initializeGL()
 {
+    initializeOpenGLFunctions();
 
-    qDebug() << "initializeOpenGLFunctions:" << initializeOpenGLFunctions();
-    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glEnable(GL_DEPTH_TEST);
+    //shader = new ShaderIO("vert1.vsh", "fragm1.frag");
+    //shader = new ShaderIO();
+    //shader->setFragmentPath("fragm1.frag");
+    //shader->compileSProgram();
 
-    compilVertexShaderGL(vertexShader, vertexShaderSource);
-    // fragment shader
-    compilFragmentShaderGL(fragmentShader, fragmentShaderSource);
-    // link shaders
-    qDebug()<<shaderProgram << "-";
-    compilShaderProgramGL(shaderProgram, vertexShader, fragmentShader);
-    qDebug()<<shaderProgram << "--";
-    //glUseProgram(shaderProgram);
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
+    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);//указываем цвет фона
 
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
+    glEnable(GL_LIGHTING); //включаем для сцены возможность использовать источники света
+    glEnable(GL_LIGHT0); //включаем источник света 1
+    glEnable(GL_LIGHT1); //включаем источник света 2
+    GLfloat	light1_Intensity[4] = {0.3f, 0.3f, 0.3f, 0.3f};
+    glLightfv(GL_LIGHT1, GL_DIFFUSE, light1_Intensity);
+    glLightfv(GL_LIGHT1, GL_SPECULAR, light1_Intensity);
+    glEnable(GL_COLOR_MATERIAL);//включаем отображение изначального цвета объектов
 
-    glBindVertexArray(VAO);
+    float v[] = {1., 1., 1., 1.};
+    glMaterialfv(GL_FRONT, GL_SPECULAR, v);//включение блика
+    glMateriali(GL_FRONT, GL_SHININESS, 16);//настройка блика
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sphere2.getVertexSize(), sphere2.getVertices(), GL_DYNAMIC_DRAW);
-    qDebug() << sphere2.getVertexCount() << sphere2.getTriangleCount() << sphere2.getIndexCount();
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sphere2.getIndexSize(), sphere2.getIndices(), GL_DYNAMIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    //glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    //glEnableVertexAttribArray(1);
-
-    //glBindBuffer(GL_ARRAY_BUFFER, 0);
-    //glBindVertexArray(0);
-
-    glUseProgram(shaderProgram);
+    glEnable(GL_NORMALIZE);//выравнивание нормалей
 }
 
 void ChangeSize(GLsizei width, GLsizei height){
     int side = qMin(width, height);
 
-    GLsizei nRange = 100.0f;
+    float length = 1;
+    float zLength = 500;
+
 
     glViewport((width - side) / 2, (height - side) / 2, side, side);
 
     glDepthFunc(GL_LEQUAL);
-    glEnable(GL_DEPTH_TEST);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glEnable(GL_DEPTH_TEST); //включение перекрытия полигонов в зависимости от расстояния до камеры
 
     glMatrixMode(GL_PROJECTION);
+
     glLoadIdentity();
-//#ifdef QT_OPENGL_ES_1
-    //glOrtho(-0.5, +0.5, -0.5, +0.5, 4.0, 15.0);
-//#else
-//    glOrtho(-0.5, +0.5, -0.5, +0.5, 4.0, 15.0);
-//#endif
     if (width <= height){
-        glFrustum(-nRange, nRange, -nRange*height/width, nRange*height/width, nRange, nRange*3);
+        glFrustum(-length, length, -length*height/width, length*height/width, 1, length+zLength);
     }
     else{
-        glFrustum(-nRange*height/width, nRange*height/width, -nRange, nRange, nRange, nRange*3);
+        glFrustum(-length*width/height, length*width/height, -length, length, 1, length+zLength);
     }
-    //glMatrixMode(GL_MODELVIEW);
-    //glLoadIdentity();
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
 }
 
 void mygl::resizeGL(int width, int height)
 {
     ChangeSize(width, height);
+    qDebug()<<"START";
 }
 
 void mygl::paintGL()
 {
-    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glUseProgram(shaderProgram);
-    // draw our first triangle
+    glPushMatrix();
+        float light0Pos[] = {-2, 2, 1}; //позиция первого источника
+        float light1Pos[] = {-2, 2, -1.5}; //позиция первого источника
+        glTranslatef(0, 0, -2);
+        glLightfv(GL_LIGHT0, GL_POSITION, light0Pos);
+        glLightfv(GL_LIGHT1, GL_POSITION, light1Pos);
 
-
-    ChangeSize(this->width(), this->height());
-    //glLoadIdentity();
-    //qDebug()<<this->width()<<"|"<<this->height();
-    //glPushMatrix();
-    //GLdouble translate[16] = {1,0,0,0,0,1,0,0,0,0,1,0,1,0,0,1};
-    //glMultMatrixd(translate);
-    glTranslated(4, 4, -300);
-    glRotated(30,1,0,0);
-     // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
-    //glDrawArrays(GL_TRIANGLES, 0, 6);
-    //glPopMatrix();
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    //glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
-    glBindVertexArray(VAO);
-    glDrawElements(GL_TRIANGLES, sphere2.getIndexCount(), GL_UNSIGNED_INT, 0);
-    //glDrawArrays(GL_TRIANGLES, 0, sphere2.getIndexCount());
-
-    glFlush();
+        glPushMatrix();
+            glColor3d(polyColor[0], polyColor[1], polyColor[2]);
+            glRotatef(buffR, X0, Y0, Z0);
+            if(viewTrigger == 0) sphere2.drawLines(lineColor.data());
+            else if(viewTrigger == 1) sphere2.drawWithLines(lineColor.data());
+            else sphere2.draw();
+            drawAxis();
+        glPopMatrix();
+    glPopMatrix();
 }
 
-void mygl::compilVertexShaderGL(unsigned int &vertexS, const char *vertexSS)
+void mygl::changeZ()
 {
-    int success;
-    char infoLog[512];
-    vertexS = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexS, 1, &vertexSS, NULL);
-    glCompileShader(vertexS);
-    // check for shader compile errors
+    buffR += vectR;
+    update();
 
-    glGetShaderiv(vertexS, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(vertexS, 512, NULL, infoLog);
-        qDebug() << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog;
-    }
-}
-
-void mygl::compilFragmentShaderGL(unsigned int &fragmentS, const char *fragmentSS)
-{
-    int success;
-    char infoLog[512];
-    fragmentS = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentS, 1, &fragmentSS, NULL);
-    glCompileShader(fragmentS);
-    // check for shader compile errors
-    glGetShaderiv(fragmentS, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(fragmentS, 512, NULL, infoLog);
-        qDebug() << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog;
-    }
-}
-
-void mygl::compilShaderProgramGL(unsigned int &shaderP, unsigned int &vertexS, unsigned int &fragmentS)
-{
-    int success;
-    char infoLog[512];
-    shaderP = glCreateProgram();
-    glAttachShader(shaderP, vertexS);
-    glAttachShader(shaderP, fragmentS);
-    glLinkProgram(shaderP);
-    // check for linking errors
-    glGetProgramiv(shaderP, GL_LINK_STATUS, &success);
-    if (!success) {
-        glGetProgramInfoLog(shaderP, 512, NULL, infoLog);
-        qDebug() << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog;
-    }
 }
 
 

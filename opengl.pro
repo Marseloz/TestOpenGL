@@ -9,17 +9,20 @@ CONFIG += c++11
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 LIBS += -lopengl32
+win32:INCLUDEPATH += E:\Users\mobut\Documents\opengl\glm
 
 SOURCES += \
     main.cpp \
     mainwindow.cpp \
     mygl.cpp \
-    Sphere.cpp
+    Sphere.cpp \
+    #shaderio.cpp
 
 HEADERS += \
     mainwindow.h \
     mygl.h \
-    Sphere.h
+    Sphere.h \
+    #shaderio.h
 
 FORMS += \
     mainwindow.ui
@@ -28,3 +31,10 @@ FORMS += \
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
+
+#DISTFILES += \
+#    fragm1.frag \
+#    vert1.vsh
+
+RESOURCES += \
+    data.qrc
