@@ -1,6 +1,0 @@
-<RCC>
-    <qresource prefix="/">
-        <file>fragm1.frag</file>
-        <file>vert1.vsh</file>
-    </qresource>
-</RCC>
